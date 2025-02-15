@@ -1,9 +1,19 @@
 
 # replace everything with your own
-user_info = {
-    'timezone': '', # using tz database timezones
+USER = {
+    '' # using tz database timezones
+}
 
-    'api_key': '',
+# binance API
+API = {
+    'API_KEY': "",
 
-    'api_secret': '' 
+    'API_SECRET': ""
+}
+
+# telegram bot token and chat id to send messages
+TELEGRAM = {
+    'TOKEN': '',
+
+    'CHAT_ID': ''
 }
