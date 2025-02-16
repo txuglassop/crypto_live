@@ -1,28 +1,26 @@
-import websocket
-import datetime
+import asyncio
+import websockets
+import json
 
-def on_message(ws, message):
-    print()
-    print(str(datetime.datetime.now()) + ": ")
-    print(message)
+async def candle_stick_data(symbol: str, interval: str):
+    symbol = symbol.lower()
+    url = f"wss://stream.binance.com:9443/ws/{symbol}@kline_{interval}" 
 
-def on_error(ws, error):
-    print(error)
+    async with websockets.connect(url) as sock:
+        while True:
+            resp = await sock.recv()
+            data = json.loads(resp)
 
-def on_close(close_msg):
-    print("### closed ###" + close_msg)
+            if "k" in data:
+                kline = data["k"]
+                is_closed = kline["x"] 
 
-def streamKline(currency, interval):
-    socket = f'wss://stream.binance.com:9443/ws/{currency}@kline_{interval}'
-    ws = websocket.WebSocketApp(socket,
-                                on_message=on_message,
-                                on_error=on_error,
-                                on_close=on_close)
+                if is_closed:
+                    print(type(kline))
+                    print(kline)
 
-    ws.run_forever()
 
-streamKline('btcusdt', '15m')
-
+asyncio.run(candle_stick_data('btcusdt', '1m'))
 
 # wss://stream.binance.com:9443/ws/<symbol>@kline_<interval>
 
