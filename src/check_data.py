@@ -17,10 +17,13 @@ def check_data(df: pd.DataFrame):
     print(f'\n>>> Running data check <<<\n')
 
     l = df['timestamp']
-    if all(l[i] <= l[i+1] for i in range(len(l) - 1)):
+    if all(l.iloc[i] <= l.iloc[i+1] for i in range(len(l) - 1)):
         print('Data is sorted\n')
     else:
         print('Data is NOT sorted - please check timestamp feature')
+    
+    num_nan = df.isna().sum().sum()
+    print(f'Number of NANs: {num_nan}\n')
 
     last_entry_point = df['timestamp'].iloc[-1]
     time_since = time.time()*1000 - last_entry_point
