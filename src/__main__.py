@@ -1,4 +1,5 @@
 import pandas as pd
+import xgboost as xgb
 import time
 import asyncio
 import websockets
@@ -16,7 +17,7 @@ from binance.client import Client
 
 from user_info import API, USER
 from check_data import check_data
-from get_helper_functions import get_data_processor
+from get_helper_functions import get_data_processor, get_xgb_model
 
 from warnings import simplefilter
 simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
@@ -46,8 +47,6 @@ def append_data(df: pd.DataFrame, kline: dict):
     df = pd.concat([df, new_row], ignore_index=True)
     df = df.apply(lambda col: col.astype(float) if col.dtype == 'object' else col)
 
-    print(df.tail())
-
     return df
 
 async def stream_data(symbol: str, interval: str, df: pd.DataFrame):
@@ -55,6 +54,8 @@ async def stream_data(symbol: str, interval: str, df: pd.DataFrame):
     url = f"wss://stream.binance.com:9443/ws/{symbol_ws}@kline_{interval}" 
 
     data_processor = get_data_processor(symbol, interval)
+    model = get_xgb_model(symbol, interval)
+    #print(model.get_params())
 
     async with websockets.connect(url) as sock:
         while True:
@@ -66,15 +67,21 @@ async def stream_data(symbol: str, interval: str, df: pd.DataFrame):
                 is_closed = kline["x"] 
 
                 if is_closed:
-                    print(kline)
+                    #print(kline)
                     df = append_data(df, kline)
 
                     # process data (do any feature engineering)
                     df_final = data_processor(df)
+                    print('shape', df_final.shape)
 
                     print(df_final.tail())
 
+                    df_final.to_csv('god_help_me.csv')
+
                     # make a prediction
+                    incoming = pd.DataFrame(df_final.iloc[-2:]) # xgb is weird with one-line predictions
+                    pred = model.predict(incoming)[1]
+                    print(pred)
 
                     # process prediction
 
