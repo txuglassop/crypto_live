@@ -18,6 +18,8 @@ from binance.client import Client
 from user_info import API, USER
 from check_data import check_data
 from get_helper_functions import get_data_processor, get_xgb_model
+from process_pred import process_pred
+from telegram import send_exit_msg
 
 from warnings import simplefilter
 simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
@@ -55,35 +57,52 @@ async def stream_data(symbol: str, interval: str, df: pd.DataFrame):
 
     data_processor = get_data_processor(symbol, interval)
     model = get_xgb_model(symbol, interval)
-    #print(model.get_params())
 
-    async with websockets.connect(url) as sock:
-        while True:
-            resp = await sock.recv()
-            data = json.loads(resp)
+    try:
+        async with websockets.connect(url) as sock:
+            while True:
+                resp = await sock.recv()
+                data = json.loads(resp)
 
-            if "k" in data:
-                kline = data["k"]
-                is_closed = kline["x"] 
+                if "k" in data:
+                    kline = data["k"]
+                    is_closed = kline["x"] 
 
-                if is_closed:
-                    #print(kline)
-                    df = append_data(df, kline)
+                    if is_closed:
+                        print(kline)
+                        df = append_data(df, kline)
 
-                    # process data (do any feature engineering)
-                    df_final = data_processor(df)
-                    print('shape', df_final.shape)
+                        # process data (do any feature engineering)
+                        df_final = data_processor(df)
+                        print('shape', df_final.shape)
 
-                    print(df_final.tail())
+                        print(df_final.tail())
 
-                    df_final.to_csv('god_help_me.csv')
+                        # make a prediction
+                        incoming = pd.DataFrame(df_final.iloc[-2:]) # xgb is weird with one-line predictions
+                        pred = model.predict(incoming)[1]
 
-                    # make a prediction
-                    incoming = pd.DataFrame(df_final.iloc[-2:]) # xgb is weird with one-line predictions
-                    pred = model.predict(incoming)[1]
-                    print(pred)
+                        ### for testing
+                        import random
+                        pred = random.choice([0,2])
 
-                    # process prediction
+                        print(pred)
+
+                        # process prediction
+                        process_pred(symbol, interval, pred, kline['c'])
+
+                        # clean up
+                        # - ensure df is back to buffer length
+
+
+    except websockets.exceptions.ConnectionClosedError as e:
+        print(f"Websocket connection closed from error: {e}")
+    except websockets.exceptions.ConnectionClosed as e:
+        print(f"Websocket disconnected: {e}")
+    except KeyboardInterrupt:
+        print(f"User interrupt process")
+    finally:
+        send_exit_msg(symbol, interval)
 
 
 def main(symbol, interval):
