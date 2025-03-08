@@ -1,4 +1,5 @@
 from telegram import send_signal_msg
+from frontend import update
 
 
 
@@ -15,4 +16,5 @@ def process_pred(symbol, interval, pred: int, price: float):
     if signal:
         send_signal_msg(symbol, interval, signal, price)
 
+    update(symbol, interval, pred)
 

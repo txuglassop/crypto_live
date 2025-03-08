@@ -2,13 +2,21 @@ import importlib
 import os
 import xgboost as xgb
 
+# for each symbol_interval, enter the name of the method required for
+# incoming data processing
+# the module must be in `process_data.py`
+helper_dict = {
+    'BTCUSDT_1m':'process_2',
+    'ETHUSDT_1h':'process_2'
+}
+
 def get_data_processor(symbol: str, interval: str):
     """
     Returns a data processor to do feature engineering on the given
     symbol and interval. Will return a data processor method to apply
     to the appended `df` if one is found.
     """
-    method_name = f"{symbol}_{interval}"
+    method_name = helper_dict[f'{symbol}_{interval}']
 
     module = importlib.import_module('process_data')
 
