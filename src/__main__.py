@@ -58,46 +58,50 @@ async def stream_data(symbol: str, interval: str, df: pd.DataFrame):
 
     data_processor = get_data_processor(symbol, interval)
     model = get_xgb_model(symbol, interval)
-    start(symbol, interval)
 
-    try:
-        async with websockets.connect(url) as sock:
-            while True:
-                resp = await sock.recv()
-                data = json.loads(resp)
+    while True:
+        try:
+            async with websockets.connect(url) as sock:
+                start(symbol, interval)
+                while True:
+                    resp = await sock.recv()
+                    data = json.loads(resp)
 
-                if "k" in data:
-                    kline = data["k"]
-                    is_closed = kline["x"] 
+                    if "k" in data:
+                        kline = data["k"]
+                        is_closed = kline["x"] 
 
-                    if is_closed:
-                        df = append_data(df, kline)
+                        if is_closed:
+                            df = append_data(df, kline)
 
-                        # process data (do any feature engineering)
-                        df_final = data_processor(df)
+                            # process data (do any feature engineering)
+                            df_final = data_processor(df)
 
-                        # make a prediction
-                        incoming = pd.DataFrame(df_final.iloc[-2:]) # xgb is weird with one-line predictions
-                        pred = model.predict(incoming)[1]
+                            # make a prediction
+                            incoming = pd.DataFrame(df_final.iloc[-2:]) # xgb is weird with one-line predictions
+                            pred = model.predict(incoming)[1]
 
-                        # process prediction
-                        process_pred(symbol, interval, pred, kline['c'])
+                            # process prediction
+                            process_pred(symbol, interval, pred, kline['c'])
 
-                        # clean up
-                        # - ensure df is back to buffer length
-
-
-    except websockets.exceptions.ConnectionClosedError as e:
-        print(f"Websocket connection closed from error: {e}")
-    except websockets.exceptions.ConnectionClosed as e:
-        print(f"Websocket disconnected: {e}")
-    except KeyboardInterrupt:
-        print(f"User interrupt process")
-    finally:
-        send_exit_msg(symbol, interval)
+                            # clean up
+                            # - ensure df is back to buffer length
 
 
-def main(symbol, interval):
+        except websockets.exceptions.ConnectionClosedError as e:
+            print(f"Websocket connection closed from error: {e}")
+        except websockets.exceptions.ConnectionClosed as e:
+            print(f"Websocket disconnected: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+        print('Attempting to reconnect...')
+        time.sleep(5)
+
+
+
+
+async def main(symbol, interval):
     print('\n>> ENSURE AMPLE TIME BEFORE STARTING <<\n')
     ms, client_interval = lookup[interval]
 
@@ -128,20 +132,19 @@ def main(symbol, interval):
     # drop the last row since this candle is not closed yet
     df = df.iloc[:-1]
 
-    print(df.tail())
+    try:
+        await stream_data(symbol, interval, df)
+    except KeyboardInterrupt:
+        send_exit_msg(symbol, interval)
 
-    asyncio.run(stream_data(symbol, interval, df))
-
-
-
-    
 
 if __name__ == '__main__':
     symbol, interval = sys.argv[1], sys.argv[2]
     symbol = symbol.upper()
     if interval not in lookup.keys():
         raise ValueError(f'Unknown interval {interval}')
-    main(symbol, interval)
+    
+    asyncio.run(main(symbol, interval))
 
 
 
