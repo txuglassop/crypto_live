@@ -1,6 +1,7 @@
 """
 frontend? did you mean terminal?
 """
+import pandas as pd
 import os
 import sys
 from datetime import datetime
@@ -30,3 +31,11 @@ def update(symbol:str, interval:str, pred:int):
     print(f'PAIR: {symbol}_{interval}') 
     print(f'Last updated: {time}')
     print(f'Latest prediction: {pred}')
+
+    # display history
+    print('')
+    csv = symbol + '_' + interval + '.csv'
+    path = './logs/' + csv
+    df = pd.read_csv(path)
+
+    print(df.tail())

@@ -82,7 +82,7 @@ async def stream_data(symbol: str, interval: str, df: pd.DataFrame):
                             pred = model.predict(incoming)[1]
 
                             # process prediction
-                            process_pred(symbol, interval, pred, kline['c'])
+                            process_pred(symbol, interval, pred, kline)
 
                             # clean up
                             # - ensure df is back to buffer length
